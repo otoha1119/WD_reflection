@@ -1,0 +1,15 @@
+services:
+  reflect:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: reflect-mvc:latest
+    container_name: reflect-mvc
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+    environment:
+      - PYTHONUNBUFFERED=1
+    tty: true            # 端末を有効化（対話用）
+    stdin_open: true     # 標準入力を開いたままにする
+    command: bash -lc "sleep infinity"
