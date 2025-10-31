@@ -1,3 +1,5 @@
+#前処理1枚
+
 #!/usr/bin/env python3
 """
 前処理で補正された画像を確認するスクリプト
@@ -32,7 +34,7 @@ class PreprocessingPreview:
         # 0-255にスケール
         return (corrected * 255).astype(np.uint8)
     
-    def apply_clahe(self, image, clip_limit=8.0, tile_size=8):
+    def apply_clahe(self, image, clip_limit=1.0, tile_size=8):
         """CLAHE（コントラスト強調）"""
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
@@ -47,10 +49,10 @@ class PreprocessingPreview:
     def apply_full_preprocessing(self, image):
         """ガンマ補正 + CLAHE の完全前処理"""
         # ステップ1: ガンマ補正
-        gamma_corrected = self.apply_gamma_correction(image, gamma=0.5)
+        gamma_corrected = self.apply_gamma_correction(image, gamma=0.7)
         
         # ステップ2: CLAHE
-        fully_processed = self.apply_clahe(gamma_corrected, clip_limit=3.0)
+        fully_processed = self.apply_clahe(gamma_corrected, clip_limit=1.0)
         
         return gamma_corrected, fully_processed
     
@@ -219,7 +221,7 @@ def main():
     print("=" * 70)
     
     # パスを設定
-    input_image = "/workspace/data/images/100.png"  # ← 画像パスを変更可能
+    input_image = "/workspace/data/images/1.png"  # ← 画像パスを変更可能
     output_dir = "/workspace/results"
     
     # プレビューを実行
