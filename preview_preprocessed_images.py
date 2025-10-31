@@ -19,7 +19,7 @@ class PreprocessingPreview:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-    def apply_gamma_correction(self, image, gamma=0.5):
+    def apply_gamma_correction(self, image, gamma=0.7):
         """
         ガンマ補正
         gamma < 1.0: 明るくなる（暗い部分を強調）
@@ -32,7 +32,7 @@ class PreprocessingPreview:
         # 0-255にスケール
         return (corrected * 255).astype(np.uint8)
     
-    def apply_clahe(self, image, clip_limit=3.0, tile_size=8):
+    def apply_clahe(self, image, clip_limit=8.0, tile_size=8):
         """CLAHE（コントラスト強調）"""
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
@@ -219,8 +219,8 @@ def main():
     print("=" * 70)
     
     # パスを設定
-    input_image = "/mnt/project/2.png"  # ← 画像パスを変更可能
-    output_dir = "/mnt/user-data/outputs/preprocessed_images_preview"
+    input_image = "/workspace/data/images/100.png"  # ← 画像パスを変更可能
+    output_dir = "/workspace/results"
     
     # プレビューを実行
     preview = PreprocessingPreview(input_image, output_dir)
