@@ -221,7 +221,7 @@ def main():
     print("=" * 70)
     
     # パスを設定
-    input_image = "/workspace/data/images/1.png"  # ← 画像パスを変更可能
+    input_image = "/workspace/data/images/100.png"  # ← 画像パスを変更可能
     output_dir = "/workspace/results"
     
     # プレビューを実行
