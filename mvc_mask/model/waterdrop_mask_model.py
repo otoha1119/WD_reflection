@@ -52,23 +52,56 @@ class WaterdropMaskModel:
     """
 
     # HSV threshold parameters
-    v_k: float = 1.5
-    v_floor: float = 150
-    s_max: float = 80
+    # Further lower the specular detection threshold to pick up even
+    # darker reflections.  v_k controls how many standard deviations
+    # above the mean the V threshold lies, and v_floor caps the
+    # minimum value of the threshold.  s_max is the maximum allowed
+    # saturation for a pixel to be considered specular.  These
+    # defaults were tuned experimentally on crate images with dim
+    # water streaks: setting v_k < 1.0 and v_floor around the 97th
+    # percentile of the background brightness helps reveal dark
+    # droplets.
+    v_k: float = 0.8
+    # Raise the floor slightly to suppress extremely dark regions
+    v_floor: float = 70
+    s_max: float = 130
+    # Percentile for the V channel when computing the specular
+    # threshold.  Instead of solely relying on the mean+std method,
+    # the threshold is taken as the larger of ``v_floor`` and the
+    # ``v_percentile``–th percentile of the V channel.  This makes
+    # the algorithm adapt to images with very dark global brightness,
+    # ensuring that the brightest few percent of pixels are always
+    # considered.  Typical values are between 96 and 99.
+    v_percentile: float = 98.0
     # Top–hat filtering parameters
+    # Use a smaller structuring element and a more permissive
+    # threshold (lower k and floor) to capture weak highlights.
     tophat_se_size: int = 9
-    tophat_k: float = 1.1
-    tophat_floor: float = 10
+    tophat_k: float = 0.9
+    tophat_floor: float = 4
     # Local z–score parameters
-    z_win: int = 31
-    z_thr: float = 2.1
+    # Keep a moderate window but reduce the z–score threshold so that
+    # subtle local brightening stands out.  Smaller windows risk
+    # over‑detecting grid noise, so we keep 21 but lower the threshold.
+    z_win: int = 21
+    z_thr: float = 2.0
     # DoG parameters
-    dog_sigma1: float = 1.2
-    dog_sigma2: float = 2.0
-    dog_percentile: float = 98.3
+    # Increase the spread between sigma1 and sigma2 and lower the
+    # percentile threshold to bring out broad, faint streaks.
+    dog_sigma1: float = 1.0
+    dog_sigma2: float = 3.0
+    # Raise percentile to tighten DoG detection so it focuses on the most
+    # prominent diffused highlights rather than large swaths of texture.
+    dog_percentile: float = 97.0
     # Morphological post–processing
+    # Slightly lower the minimum area to retain small droplets,
+    # while keeping the closing kernel modest to avoid filling holes.
     open_k: int = 3
-    close_k: int = 3
+    close_k: int = 5
+    # Increase minimum area to filter out small specks that are likely
+    # noise.  Water droplets tend to occupy multiple pixels after
+    # pre–processing, whereas single–pixel detections are often grid
+    # artefacts.
     min_area: int = 20
     # Watershed parameters
     ws_min_peak_dist: int = 2
@@ -149,8 +182,15 @@ class WaterdropMaskModel:
         # Specular (HSV) branch
         v_f32 = v.astype(np.float32)
         v_mean, v_std = float(np.mean(v_f32)), float(np.std(v_f32))
-        v_thr = max(v_mean + self.v_k * v_std, float(self.v_floor))
-        specular_mask = ((v_f32 > v_thr) & (s.astype(np.float32) < self.s_max)).astype(np.uint8) * 255
+        # Compute two candidate thresholds: one based on mean+std and
+        # one based on a percentile.  Take the maximum to ensure that
+        # we only consider pixels that are both brighter than the
+        # global background and within the top fraction of the
+        # brightness distribution.  Finally cap by v_floor.
+        v_thr_std = v_mean + self.v_k * v_std
+        v_thr_pct = np.percentile(v_f32, self.v_percentile)
+        v_thr = max(float(self.v_floor), max(v_thr_std, v_thr_pct))
+        specular_mask = ((v_f32 >= v_thr) & (s.astype(np.float32) <= self.s_max)).astype(np.uint8) * 255
         # Top–hat branch
         gray = self._to_gray(img)
         se = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (self.tophat_se_size, self.tophat_se_size))
