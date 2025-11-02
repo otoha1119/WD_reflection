@@ -1,39 +1,32 @@
 """
-box_mask_model.py
-===================
+box_mask_model
+================
 
-This module contains the :class:`BoxMaskModel` class, which
-implements an algorithm to locate a green plastic crate within a
-production line image and produce a corresponding binary mask.
+This module defines the :class:`BoxMaskModel` class which detects a
+green plastic crate (box) within an image and returns a binary mask
+of the crate region.  The implementation is adapted from the
+assignment's ``GenerateBoxMask.py`` and the ``mvc_mask`` package.
+The algorithm performs HSV colour thresholding to isolate dark
+green regions, removes bright highlights, applies morphological
+operations to clean up the mask, suppresses long horizontal edges
+(conveyor rails) via a Hough transform, filters connected
+components to choose the best candidate region based on area,
+aspect ratio and position, and finally fills the resulting
+polygon to produce the output mask.
 
-The implementation originates from ``GenerateBoxMask.py`` but has
-been refactored into a class so that it can be used as part of an
-MVC architecture.  The core steps of the algorithm are:
-
-1. **Colour thresholding in HSV space** to extract dark green
-   regions that correspond to the crate surface while suppressing
-   bright highlights.
-2. **Morphological operations** to clean up the mask and remove
-   noise.  Closing operations fill holes between the crate slats,
-   while opening removes small spurious blobs.
-3. **Long horizontal edge suppression** using a Hough transform to
-   detect the conveyor rails and subtract them from the mask.
-4. **Connected component filtering** to choose the region that best
-   resembles the crate (based on area, aspect ratio and position).
-5. **Convex hull and polygon approximation** to derive a neat
-   quadrilateral representing the crate, and **polygon fill** to
-   produce the final binary mask.
-
-The resulting mask can be combined with the original image to draw
-only the outline for visualisation purposes.  See the accompanying
-view module for saving routines.
+The class exposes a single method :meth:`generate_mask` which
+accepts a BGR image and returns a tuple ``(mask, polygon)``.  The
+``mask`` is a single–channel binary image with pixel values 0 or
+255; the ``polygon`` is a list of vertices outlining the crate
+region (or ``None`` if no suitable region is found).
 """
 
 from __future__ import annotations
 
+from typing import Optional, Tuple, List
+
 import cv2
 import numpy as np
-from typing import Optional, Tuple, List
 
 
 class BoxMaskModel:
@@ -98,7 +91,7 @@ class BoxMaskModel:
         thick: int = 22,
         angle_threshold: float = 12.0,
     ) -> np.ndarray:
-        """Detect and dilate long horizontal edges to form a mask.
+        """Detect and dilate long horizontal edges to form a rail mask.
 
         These edges correspond to the conveyor rails and should be
         subtracted from the crate mask.  The Hough transform is
@@ -133,11 +126,9 @@ class BoxMaskModel:
         if lines is None:
             return rail
         for (x1, y1, x2, y2) in lines[:, 0]:
-            # Compute absolute angle w.r.t. horizontal
             ang = abs(np.degrees(np.arctan2((y2 - y1), (x2 - x1))))
             if ang < angle_threshold:
                 cv2.line(rail, (x1, y1), (x2, y2), 255, thick)
-        # Dilate to bridge small gaps and ensure coverage
         rail = cv2.dilate(
             rail,
             cv2.getStructuringElement(cv2.MORPH_RECT, (19, 19)),
@@ -162,28 +153,14 @@ class BoxMaskModel:
         lower = np.array([self.hue_range[0], self.sat_range[0], self.val_range[0]], dtype=np.uint8)
         upper = np.array([self.hue_range[1], self.sat_range[1], self.val_range[1]], dtype=np.uint8)
         mask = cv2.inRange(hsv, lower, upper)
-        # Remove very bright highlights (specular reflections) from the mask
         v = hsv[:, :, 2]
         _, hi = cv2.threshold(v, self.highlight_threshold, 255, cv2.THRESH_BINARY)
         mask = cv2.bitwise_and(mask, cv2.bitwise_not(hi))
         return mask
 
-    def _preprocess_image(self, img: np.ndarray) -> np.ndarray:
-        """Perform simple pre–filtering on the input image.
-
-        Currently a bilateral filter is applied to suppress noise while
-        preserving edges.
-
-        Parameters
-        ----------
-        img : numpy.ndarray
-            Input BGR image.
-
-        Returns
-        -------
-        numpy.ndarray
-            Filtered image.
-        """
+    @staticmethod
+    def _preprocess_image(img: np.ndarray) -> np.ndarray:
+        """Apply a bilateral filter to suppress noise while preserving edges."""
         return cv2.bilateralFilter(img, d=7, sigmaColor=40, sigmaSpace=7)
 
     def _select_best_candidate(
@@ -192,7 +169,7 @@ class BoxMaskModel:
         area_threshold: float,
         aspect_ratio_range: Tuple[float, float],
         pos_bias: float,
-    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """Select the most plausible crate region among connected components.
 
         Parameters
@@ -228,9 +205,6 @@ class BoxMaskModel:
             aspect_ratio = bw / (bh + 1e-6)
             if not (aspect_ratio_range[0] <= aspect_ratio <= aspect_ratio_range[1]):
                 continue
-            # Compute a position–biased score; crates are usually in the
-            # lower middle of the image.  Regions closer to `pos_bias`*h
-            # are scored higher.
             cy = y + bh / 2.0
             pos_factor = 1.0 - abs((cy / h) - pos_bias)
             score = area * pos_factor
@@ -238,17 +212,13 @@ class BoxMaskModel:
                 best_score = score
                 best = c
         if best is None:
-            # Fallback: choose the largest contour
             best = max(contours, key=cv2.contourArea)
-        # Compute convex hull and approximate polygon
         hull = cv2.convexHull(best)
         perim = cv2.arcLength(hull, True)
         epsilon = 0.015 * perim
         approx = cv2.approxPolyDP(hull, epsilon, True)
-        # If too many points remain, simplify further
         if len(approx) > 8:
             approx = cv2.approxPolyDP(hull, 0.03 * perim, True)
-        # The polygon is returned as a 2D array of shape (N, 2)
         poly_points = approx.reshape(-1, 2) if approx is not None else None
         return best, poly_points
 
@@ -275,11 +245,8 @@ class BoxMaskModel:
               the crate.  It may be ``None`` if no suitable region is
               found.
         """
-        # Pre–filter to suppress noise
         img_filtered = self._preprocess_image(img)
-        # Colour threshold to isolate crate candidates
         mask_colour = self._colour_threshold(img_filtered)
-        # Morphological closing and opening to tidy up the mask
         mask_colour = cv2.morphologyEx(
             mask_colour,
             cv2.MORPH_CLOSE,
@@ -292,26 +259,21 @@ class BoxMaskModel:
             cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)),
             iterations=1,
         )
-        # Remove long horizontal rails
         gray = cv2.cvtColor(img_filtered, cv2.COLOR_BGR2GRAY)
         edges = cv2.Canny(cv2.GaussianBlur(gray, (5, 5), 0), 60, 160)
         rails = self._remove_long_horizontal_edges(img_filtered.shape, edges)
         mask_candidates = cv2.bitwise_and(mask_colour, cv2.bitwise_not(rails))
-        # Compute area threshold in pixels
         h, w = mask_candidates.shape
         area_thresh_px = self.min_area_ratio * h * w
-        # Select the best contour and polygon
-        contour, polygon = self._select_best_candidate(
+        _, polygon = self._select_best_candidate(
             mask_candidates,
             area_threshold=area_thresh_px,
             aspect_ratio_range=self.aspect_ratio_range,
             pos_bias=self.position_bias,
         )
-        # If we have a contour and polygon, fill it
         mask_out = np.zeros((h, w), dtype=np.uint8)
         if polygon is not None and len(polygon) >= 3:
             cv2.fillPoly(mask_out, [polygon.astype(np.int32)], 255)
-            # Smooth the edges with a small closing
             mask_out = cv2.morphologyEx(
                 mask_out,
                 cv2.MORPH_CLOSE,

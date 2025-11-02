@@ -1,20 +1,18 @@
 """
-pretreatment_model.py
-=====================
+pretreatment_model
+===================
 
 This module defines the :class:`PreprocessingModel` class which
-encapsulates the image pre–processing operations originally
-implemented in ``Pretreatment.py``.  The purpose of this model
-is to apply tonal adjustments to an input image prior to further
-analysis.  In particular it provides gamma correction and CLAHE
-(Contrast Limited Adaptive Histogram Equalisation) functionality as
-well as a convenience routine to perform both steps in sequence.
+provides simple tonal adjustments to prepare crate images for
+subsequent analysis.  The class implements gamma correction and
+CLAHE (Contrast Limited Adaptive Histogram Equalisation) along with
+a convenience method to perform both steps in sequence.  It is a
+faithful copy of the pre–processing model in the original
+``mvc_mask`` package and is replicated here to make this project
+self–contained.
 
-Unlike the script–oriented predecessor, the model here does not
-perform any I/O or user interaction; it simply exposes pure
-functions that operate on ``numpy.ndarray`` images.  Any file
-reading/writing or visualisation concerns are deferred to the view
-layer of the MVC architecture.
+The methods in this class accept and return images as BGR numpy
+arrays.  No file I/O is performed.
 """
 
 from __future__ import annotations
@@ -79,7 +77,6 @@ class PreprocessingModel:
             Gamma corrected BGR image.
         """
         g = self.gamma if gamma is None else gamma
-        # Normalise to [0,1], apply exponent, scale back to [0,255]
         norm = image.astype(np.float32) / 255.0
         corrected = np.power(norm, g)
         return np.clip(corrected * 255.0, 0, 255).astype(np.uint8)
