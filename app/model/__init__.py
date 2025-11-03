@@ -18,17 +18,24 @@ Available models:
 
 - :class:`app.model.reflection_removal_model.ReflectionRemovalModel`
     Remove reflections from an image given a binary mask.
+
+- :class:`app.model.box_mask_model.BoxMaskModel`
+    Detect the crate region and produce a binary mask.
+
+- :class:`app.model.evaluation_model.EvaluationModel`
+    Evaluate reflection removal quality using multiple metrics.
 """
 
 from .pretreatment_model import PreprocessingModel
 from .waterdrop_mask_model import WaterdropMaskModel
 from .reflection_removal_model import ReflectionRemovalModel
-
 from .box_mask_model import BoxMaskModel
+from .evaluation_model import EvaluationModel
 
 __all__ = [
     "PreprocessingModel",
     "WaterdropMaskModel",
     "ReflectionRemovalModel",
     "BoxMaskModel",
+    "EvaluationModel",
 ]

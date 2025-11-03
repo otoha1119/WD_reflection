@@ -9,4 +9,4 @@ images to disk).  They do not implement algorithmic details, which
 are delegated to the models.
 """
 
-__all__ = ["mask_controller", "reflection_controller"]
+__all__ = ["mask_controller", "reflection_controller", "evaluation_controller"]
