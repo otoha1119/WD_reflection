@@ -1,26 +1,3 @@
-"""
-box_mask_model
-================
-
-This module defines the :class:`BoxMaskModel` class which detects a
-green plastic crate (box) within an image and returns a binary mask
-of the crate region.  The implementation is adapted from the
-assignment's ``GenerateBoxMask.py`` and the ``mvc_mask`` package.
-The algorithm performs HSV colour thresholding to isolate dark
-green regions, removes bright highlights, applies morphological
-operations to clean up the mask, suppresses long horizontal edges
-(conveyor rails) via a Hough transform, filters connected
-components to choose the best candidate region based on area,
-aspect ratio and position, and finally fills the resulting
-polygon to produce the output mask.
-
-The class exposes a single method :meth:`generate_mask` which
-accepts a BGR image and returns a tuple ``(mask, polygon)``.  The
-``mask`` is a single–channel binary image with pixel values 0 or
-255; the ``polygon`` is a list of vertices outlining the crate
-region (or ``None`` if no suitable region is found).
-"""
-
 from __future__ import annotations
 
 from typing import Optional, Tuple, List
@@ -30,37 +7,6 @@ import numpy as np
 
 
 class BoxMaskModel:
-    """Model for generating a mask of a crate from an input image.
-
-    Parameters
-    ----------
-    hue_range : tuple[int, int], optional
-        Lower and upper bounds for the hue component (0–180).  By
-        default this targets a broad range of greens.
-    sat_range : tuple[int, int], optional
-        Lower and upper bounds for the saturation component.  Low
-        saturation values are excluded to avoid grey backgrounds.
-    val_range : tuple[int, int], optional
-        Lower and upper bounds for the value (brightness) component.  A
-        fairly low upper bound prevents very bright highlights from
-        being included.
-    highlight_threshold : int, optional
-        Pixels above this V threshold are considered specular highlights
-        and are removed from the colour mask.  Defaults to 150.
-    min_area_ratio : float, optional
-        Minimum area (as a fraction of the image area) for a
-        candidate region to be considered as the crate.  Defaults to
-        0.04 (i.e., 4 % of the image area).
-    aspect_ratio_range : tuple[float, float], optional
-        Acceptable range of aspect ratios (width/height) for the
-        bounding box of a candidate region.  Defaults to (1.1, 5.0).
-    position_bias : float, optional
-        Vertical position bias term used to rank candidate regions.
-        The score for a region is multiplied by ``1 - |(cy/h) -
-        position_bias|``.  By default the crate is expected to be
-        located around 65 % down the image.
-    """
-
     def __init__(
         self,
         hue_range: Tuple[int, int] = (45, 95),
@@ -170,27 +116,6 @@ class BoxMaskModel:
         aspect_ratio_range: Tuple[float, float],
         pos_bias: float,
     ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-        """Select the most plausible crate region among connected components.
-
-        Parameters
-        ----------
-        mask_candidates : numpy.ndarray
-            Binary image containing candidate pixels.
-        area_threshold : float
-            Minimum absolute area (in pixels) of a region to be considered.
-        aspect_ratio_range : tuple[float, float]
-            Acceptable range of bounding box aspect ratios.
-        pos_bias : float
-            Vertical position bias (0–1).  Regions closer to this
-            relative y position receive a higher score.
-
-        Returns
-        -------
-        tuple
-            A tuple containing (best_contour, polygon_points).  If no
-            suitable region is found, best_contour is ``None`` and the
-            polygon is ``None``.
-        """
         h, w = mask_candidates.shape
         contours, _ = cv2.findContours(mask_candidates, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
@@ -228,23 +153,6 @@ class BoxMaskModel:
     def generate_mask(
         self, img: np.ndarray
     ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-        """Compute the crate mask and corresponding polygon.
-
-        Parameters
-        ----------
-        img : numpy.ndarray
-            Input BGR image for which the crate should be masked.
-
-        Returns
-        -------
-        tuple
-            Two elements: (mask, polygon)
-            - ``mask`` is a single–channel uint8 array with pixel
-              values 0 (background) or 255 (crate).
-            - ``polygon`` is an ``(M, 2)`` array of vertices outlining
-              the crate.  It may be ``None`` if no suitable region is
-              found.
-        """
         img_filtered = self._preprocess_image(img)
         mask_colour = self._colour_threshold(img_filtered)
         mask_colour = cv2.morphologyEx(

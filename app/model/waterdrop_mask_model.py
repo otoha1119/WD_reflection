@@ -1,35 +1,3 @@
-"""
-waterdrop_mask_model
-====================
-
-This module provides a :class:`WaterdropMaskModel` class that
-encapsulates the water–drop/specular reflection detection algorithm
-used in the original programming assignment.  The goal of this model
-is to identify small, bright specular highlights on a container
-surface caused by water droplets or glare, and output a binary mask
-of those regions.
-
-The algorithm integrates several detection cues:
-
-* **HSV thresholding** to isolate bright, low–saturation pixels
-  characteristic of specular reflections.
-* **Morphological top–hat filtering** to pick up small bright spots.
-* **Local z–score thresholding** to detect locally bright regions
-  despite global brightness variations.
-* **Difference–of–Gaussian (DoG) filtering** to highlight streaks or
-  diffused glints.
-
-These cues are OR–ed together to form an initial candidate mask.
-Subsequent morphological operations clean up the mask and a mild
-watershed segmentation splits touching droplets.  Finally, small
-components are removed.
-
-The model exposes a single public method :meth:`generate_mask` which
-takes a pre–processed BGR image and returns both the final binary
-mask and a visualisation image where droplet contours are drawn on
-top of the input.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -41,13 +9,6 @@ import numpy as np
 
 @dataclass
 class WaterdropMaskModel:
-    """Detect specular highlights (water droplets) in an image.
-
-    The parameters below mirror those in the original
-    ``GenerateWaterdropMask.py`` script.  They can be adjusted to
-    tune the sensitivity of each detection branch but reasonable
-    defaults are provided for typical crate images.
-    """
 
     # HSV threshold parameters
     v_k: float = 1.5
@@ -96,16 +57,6 @@ class WaterdropMaskModel:
         return vis
 
     def _split_touching(self, mask_bin: np.ndarray) -> np.ndarray:
-        """Separate touching droplets using a watershed segmentation.
-
-        This method replicates the weak watershed used in the original
-        script.  It computes the distance transform of the mask,
-        identifies local maxima as markers, and applies watershed on a
-        colour version of the mask.  The resulting segmentation
-        separates touching blobs while attempting not to erase small
-        droplets entirely.  Only the mask of split regions is
-        returned; the original mask must be OR–ed with this result.
-        """
         if mask_bin.max() == 0:
             return mask_bin
         dist = cv2.distanceTransform(mask_bin, cv2.DIST_L2, 5)
@@ -130,22 +81,6 @@ class WaterdropMaskModel:
     # Main API
     # ------------------------------------------------------------------
     def generate_mask(self, img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        """Generate a water–drop/reflection mask from a BGR image.
-
-        Parameters
-        ----------
-        img : numpy.ndarray
-            Input BGR image (uint8).  It is recommended to apply
-            gamma correction and CLAHE before calling this method but
-            not strictly necessary.
-
-        Returns
-        -------
-        tuple
-            ``(mask, vis)`` where ``mask`` is a binary image (255
-            where droplets were detected) and ``vis`` overlays the
-            mask contours on the input for debugging.
-        """
         if img is None or img.ndim != 3 or img.dtype != np.uint8:
             raise ValueError("Input must be a BGR uint8 image")
         # HSV branch

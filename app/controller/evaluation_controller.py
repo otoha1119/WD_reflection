@@ -1,19 +1,3 @@
-"""
-evaluation_controller
-=====================
-
-Controller for evaluating reflection removal quality across a batch
-of images.  This module orchestrates the evaluation workflow:
-reading original and processed images, generating box masks,
-computing metrics via the evaluation model, aggregating statistics,
-and producing visualizations.
-
-The controller generates a comprehensive report including mean values
-and distributions for all metrics.  Results are printed to the
-terminal and distribution plots are saved to the ``Evaluation``
-directory.
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -37,23 +21,7 @@ def process_images(
     start_image: int = 1,      # ★追加：開始画像番号
     end_image: int = 120,      # ★追加：終了画像番号
 ) -> None:
-    """Evaluate reflection removal for all image pairs.
-
-    Parameters
-    ----------
-    original_dir : pathlib.Path
-        Directory containing original images (before processing).
-    result_dir : pathlib.Path
-        Directory containing processed images (after reflection removal).
-    mask_dir : pathlib.Path
-        Directory containing reflection masks.
-    output_dir : pathlib.Path
-        Directory where evaluation results and plots will be saved.
-    start_image : int, optional
-        Starting image number (inclusive). Default is 1.
-    end_image : int, optional
-        Ending image number (inclusive). Default is 120.
-    """
+    
     if not original_dir.is_dir():
         raise NotADirectoryError(f"Original images directory not found: {original_dir}")
     if not result_dir.is_dir():

@@ -1,29 +1,3 @@
-"""
-evaluation_model
-================
-
-This module defines the :class:`EvaluationModel` class which
-implements various metrics for evaluating the quality of reflection
-removal.  The model computes four key indicators:
-
-1. **HLR** (Highlight Reduction Ratio): Percentage reduction in
-   high-intensity pixels within the box region.
-
-2. **Cov** (Coverage/Completeness): Percentage of mask pixels where
-   highlights remain after processing (lower is better).
-
-3. **Brightness Reduction Rate**: Average reduction in V-channel
-   (brightness) values within the mask region.
-
-4. **Local Variance Improvement**: Improvement in texture naturalness
-   measured by local standard deviation changes.
-
-All metrics are computed only within the crate (box) region to avoid
-bias from unchanged background areas.  The model accepts pairs of
-before/after images along with a box mask and produces a dictionary
-of metric values.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -35,18 +9,6 @@ import numpy as np
 
 @dataclass
 class EvaluationModel:
-    """Model for evaluating reflection removal quality.
-
-    Parameters
-    ----------
-    highlight_threshold : int, optional
-        Threshold for considering a pixel as a highlight (V-channel).
-        Pixels with V > this value are counted as highlights.
-        Default is 200.
-    local_window_size : int, optional
-        Window size for computing local standard deviation.
-        Default is 16 (i.e., 16x16 blocks).
-    """
 
     highlight_threshold: int = 200
     local_window_size: int = 16
@@ -128,7 +90,6 @@ class EvaluationModel:
         mask: np.ndarray,
         box_mask: np.ndarray,
     ) -> Dict[str, float]:
-        """Compute all evaluation metrics for a single image pair."""
         v_before = self._extract_v_channel(img_before)
         v_after = self._extract_v_channel(img_after)
         gray_before = cv2.cvtColor(img_before, cv2.COLOR_BGR2GRAY)

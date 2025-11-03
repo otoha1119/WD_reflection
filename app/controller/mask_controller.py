@@ -1,19 +1,3 @@
-"""
-mask_controller
-================
-
-Controller for generating reflection masks on a batch of images.
-This module is responsible for reading images from a directory,
-preprocessing them, invoking the mask detection model, and saving
-the resulting masks to disk.  It is designed to be called from a
-top–level script (such as ``main_Mask.py``) or used directly via
-``python -m app.controller.mask_controller``.
-
-The default input and output directories are ``data/images`` and
-``mask`` relative to the project root.  These can be overridden by
-passing different paths to :func:`process_images`.
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -34,32 +18,6 @@ def process_images(
     use_mvc_mask: bool = False,
     save_intermediate: bool = False,
 ) -> None:
-    """Generate final and optional intermediate masks for all images.
-
-    This controller reads each image, applies pre–processing,
-    computes a water–drop (reflection) mask and a crate (box) mask,
-    intersects the two to obtain the reflection pixels inside the
-    crate, and saves the result to ``mask_dir``.  Optionally the
-    intermediate masks (water–drop only and crate only) are saved to
-    a ``debug`` subdirectory.  The mask filenames mirror the input
-    image stems with a ``_mask.png`` suffix.
-
-    Parameters
-    ----------
-    images_dir : pathlib.Path
-        Directory containing input images.  Supported formats are
-        PNG, JPEG, BMP and TIFF.
-    mask_dir : pathlib.Path
-        Directory where the output mask images will be saved.  The
-        directory is created if it does not exist.
-    use_mvc_mask : bool, optional
-        If ``True``, import models from the legacy ``mvc_mask``
-        package instead of ``app.model``.  Defaults to ``False``.
-    save_intermediate : bool, optional
-        If ``True``, also save the individual crate mask and
-        water–drop mask for debugging.  Intermediate files are
-        written to ``mask_dir / 'debug'``.  Defaults to ``False``.
-    """
     if not images_dir.is_dir():
         raise NotADirectoryError(f"Images directory not found: {images_dir}")
     mask_dir.mkdir(parents=True, exist_ok=True)
@@ -115,22 +73,6 @@ def main(
     use_mvc_mask: bool = False,
     save_intermediate: bool = False,
 ) -> None:
-    """Entry point for command–line execution.
-
-    Processes all images in the default ``data/images`` directory and
-    writes masks to ``mask``.  Optional flags allow switching to
-    legacy ``mvc_mask`` models and enabling saving of intermediate
-    masks (crate-only and waterdrop-only).
-
-    Parameters
-    ----------
-    use_mvc_mask : bool, optional
-        If ``True``, load models from ``mvc_mask`` instead of
-        ``app.model``.  Defaults to ``False``.
-    save_intermediate : bool, optional
-        If ``True``, also save the individual crate and water–drop
-        masks to ``mask/debug``.  Defaults to ``False``.
-    """
     images_dir = Path("data/images")
     mask_dir = Path("mask")
     process_images(
